@@ -1,0 +1,4 @@
+(library
+ (public_name dict.unix)
+ (name dict_unix)
+ (libraries dict unix logs))

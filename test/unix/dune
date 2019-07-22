@@ -1,0 +1,3 @@
+(test
+ (name main)
+ (libraries dict.unix irmin alcotest))

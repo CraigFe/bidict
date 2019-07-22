@@ -1,0 +1,5 @@
+(library
+ (public_name dict)
+ (name dict)
+ (modules_without_implementation io)
+ (libraries logs fmt))
