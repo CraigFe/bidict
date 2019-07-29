@@ -110,8 +110,7 @@ module Make (IO : IO) (C : CODE) = struct
   let find t id =
     if IO.readonly t.io then sync_offset t;
     Log.debug (fun l -> l "[dict] find %d" id);
-    let v = try Some (Hashtbl.find t.index id) with Not_found -> None in
-    v
+    try Some (Hashtbl.find t.index id) with Not_found -> None
 
   let clear t =
     IO.clear t.io;

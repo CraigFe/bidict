@@ -99,8 +99,6 @@ module IO = struct
     buf : Buffer.t
   }
 
-  let name t = t.file
-
   let header = 16L (* offset + version *)
 
   let sync t =
@@ -129,14 +127,6 @@ module IO = struct
     t.offset <- t.offset ++ len;
     if t.offset -- t.flushed > auto_flush_limit then sync t
 
-  (* let set t ~off buf =
-   *   if t.readonly then raise RO_Not_Allowed;
-   *   sync t;
-   *   Raw.unsafe_write t.raw ~off:(header ++ off) buf;
-   *   let len = Int64.of_int (String.length buf) in
-   *   let off = header ++ off ++ len in
-   *   assert (off <= t.flushed) *)
-
   let read t ~off buf =
     if not t.readonly then assert (header ++ off <= t.flushed);
     Raw.unsafe_read t.raw ~off:(header ++ off) ~len:(Bytes.length buf) buf
@@ -146,8 +136,6 @@ module IO = struct
   let force_offset t =
     t.offset <- Raw.unsafe_get_offset t.raw;
     t.offset
-
-  let version t = t.version
 
   let readonly t = t.readonly
 
