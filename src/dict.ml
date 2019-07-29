@@ -25,9 +25,9 @@ module type S = sig
 
   val sync : t -> unit
 
-  val v : ?fresh:bool -> ?readonly:bool -> ?capacity:int -> string -> t
-
   val clear : t -> unit
+
+  val v : ?fresh:bool -> ?readonly:bool -> ?capacity:int -> string -> t
 end
 
 let src = Logs.Src.create "dict" ~doc:"Dict"
@@ -39,14 +39,12 @@ exception RO_Not_Allowed
 module Log = (val Logs.src_log src : Logs.LOG)
 
 module type CODE = sig
-  val to_bin_string : int32 -> string
+  val to_bin_string : int -> string
 
-  val decode_bin : string -> int -> int32
+  val decode_bin : string -> int -> int
 end
 
 module Make (IO : IO) (C : CODE) = struct
-  let ( -- ) = Int64.sub
-
   type t = {
     capacity : int;
     cache : (string, int) Hashtbl.t;
@@ -55,11 +53,12 @@ module Make (IO : IO) (C : CODE) = struct
   }
 
   let append_string t v =
-    let len = Int32.of_int (String.length v) in
+    let len = String.length v in
     let buf = C.to_bin_string len ^ v in
     IO.append t.io buf
 
   let refill ~from t =
+    let ( -- ) = Int64.sub in
     let len = Int64.to_int (IO.offset t.io -- from) in
     let raw = Bytes.create len in
     let n = IO.read t.io ~off:from raw in
@@ -68,8 +67,7 @@ module Make (IO : IO) (C : CODE) = struct
     let rec aux n offset =
       if offset >= len then ()
       else
-        let v = C.decode_bin raw offset in
-        let len = Int32.to_int v in
+        let len = C.decode_bin raw offset in
         let v = String.sub raw (offset + 4) len in
         Hashtbl.add t.cache v n;
         Hashtbl.add t.index n v;
@@ -82,8 +80,6 @@ module Make (IO : IO) (C : CODE) = struct
     let log_offset = IO.force_offset t.io in
     if log_offset > former_log_offset then refill ~from:former_log_offset t
 
-  let sync t = IO.sync t.io
-
   let index t v =
     Log.debug (fun l -> l "[dict] index %S" v);
     if IO.readonly t.io then sync_offset t;
@@ -93,7 +89,6 @@ module Make (IO : IO) (C : CODE) = struct
       let id = Hashtbl.length t.cache in
       if id > t.capacity then None
       else (
-        if IO.readonly t.io then raise RO_Not_Allowed;
         append_string t v;
         Hashtbl.add t.cache v id;
         Hashtbl.add t.index id v;
@@ -102,7 +97,9 @@ module Make (IO : IO) (C : CODE) = struct
   let find t id =
     if IO.readonly t.io then sync_offset t;
     Log.debug (fun l -> l "[dict] find %d" id);
-    try Some (Hashtbl.find t.index id) with Not_found -> None
+    Hashtbl.find_opt t.index id
+
+  let sync t = IO.sync t.io
 
   let clear t =
     IO.clear t.io;

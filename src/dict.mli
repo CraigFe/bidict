@@ -27,21 +27,22 @@ module type S = sig
   val index : t -> string -> int option
 
   val sync : t -> unit
-  (** Synchronise the dictionary with the IO backend. *)
+  (** Synchronise a dictionary with its IO backend. *)
+
+  val clear : t -> unit
+  (** Empty a dictionary. *)
 
   val v : ?fresh:bool -> ?readonly:bool -> ?capacity:int -> string -> t
   (** The constructor for dictionaries.
       @param fresh
       @param shared
-      @param readonly whether read-only mode is enabled for this dictionary. *)
-
-  val clear : t -> unit
+      @param readonly  whether read-only mode is enabled for this dictionary. *)
 end
 
 module type CODE = sig
-  val to_bin_string : int32 -> string
+  val to_bin_string : int -> string
 
-  val decode_bin : string -> int -> int32
+  val decode_bin : string -> int -> int
 end
 
 module type IO = Io.S
