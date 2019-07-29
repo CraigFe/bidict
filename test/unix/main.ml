@@ -3,7 +3,7 @@ module A = Alcotest
 module D = Dict_unix.Make (struct
   let to_bin_string = Irmin.Type.(to_bin_string int32)
 
-  let decode_bin = Irmin.Type.(decode_bin int32) ?headers:None
+  let decode_bin s i = snd @@ Irmin.Type.(decode_bin int32) ?headers:None s i
 end)
 
 let test_file = Filename.concat "_build" "test-dict-unix"
@@ -11,18 +11,18 @@ let test_file = Filename.concat "_build" "test-dict-unix"
 let test_dict () =
   let dict = D.v ~fresh:true test_file in
   let index = D.index dict in
-  index "foo" |> A.(check int) "foo" 0;
-  index "foo" |> A.(check int) "foo" 0;
-  index "bar" |> A.(check int) "bar" 1;
-  index "toto" |> A.(check int) "toto" 2;
-  index "titiabc" |> A.(check int) "titiabc" 3;
-  index "foo" |> A.(check int) "foo" 0
+  index "foo" |> A.(check (option int)) "foo" (Some 0);
+  index "foo" |> A.(check (option int)) "foo" (Some 0);
+  index "bar" |> A.(check (option int)) "bar" (Some 1);
+  index "toto" |> A.(check (option int)) "toto" (Some 2);
+  index "titiabc" |> A.(check (option int)) "titiabc" (Some 3);
+  index "foo" |> A.(check (option int)) "foo" (Some 0)
 
 let test_readonly_dict () =
-  let ignore_int (_ : int) = () in
+  let ignore_int (_ : int option) = () in
   let w = D.v ~fresh:true test_file in
   let r = D.v ~fresh:false ~readonly:true test_file in
-  let check_index k i = A.(check int) k i (D.index r k) in
+  let check_index k i = A.(check (option int)) k (Some i) (D.index r k) in
   let check_find k i = A.(check (option string)) k (Some k) (D.find r i) in
   let check_none k i = A.(check (option string)) k None (D.find r i) in
   let check_raise k =
