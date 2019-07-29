@@ -19,8 +19,6 @@ module type IO = Io.S
 module type S = sig
   type t
 
-  type io
-
   val find : t -> int -> string option
 
   val index : t -> string -> int option
@@ -30,8 +28,6 @@ module type S = sig
   val v : ?fresh:bool -> ?readonly:bool -> ?capacity:int -> string -> t
 
   val clear : t -> unit
-
-  val io : t -> io
 end
 
 let src = Logs.Src.create "dict" ~doc:"Dict"
@@ -57,10 +53,6 @@ module Make (IO : IO) (C : CODE) = struct
     index : (int, string) Hashtbl.t;
     io : IO.t
   }
-
-  type io = IO.t
-
-  let io t = t.io
 
   let append_string t v =
     let len = Int32.of_int (String.length v) in

@@ -22,8 +22,6 @@ exception RO_Not_Allowed
 module type S = sig
   type t
 
-  type io
-
   val find : t -> int -> string option
 
   val index : t -> string -> int option
@@ -38,8 +36,6 @@ module type S = sig
       @param readonly whether read-only mode is enabled for this dictionary. *)
 
   val clear : t -> unit
-
-  val io : t -> io
 end
 
 module type CODE = sig
@@ -50,4 +46,4 @@ end
 
 module type IO = Io.S
 
-module Make (IO : IO) (C : CODE) : S with type io = IO.t
+module Make (IO : IO) (C : CODE) : S
