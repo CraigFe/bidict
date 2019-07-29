@@ -23,11 +23,11 @@ module type S = sig
 
   val find : t -> int -> string option
 
-  val index : t -> string -> int
+  val index : t -> string -> int option
 
   val sync : t -> unit
 
-  val v : ?fresh:bool -> ?readonly:bool -> string -> t
+  val v : ?fresh:bool -> ?readonly:bool -> ?capacity:int -> string -> t
 
   val clear : t -> unit
 
@@ -45,13 +45,14 @@ module Log = (val Logs.src_log src : Logs.LOG)
 module type CODE = sig
   val to_bin_string : int32 -> string
 
-  val decode_bin : string -> int -> int * int32
+  val decode_bin : string -> int -> int32
 end
 
 module Make (IO : IO) (C : CODE) = struct
   let ( -- ) = Int64.sub
 
   type t = {
+    capacity : int;
     cache : (string, int) Hashtbl.t;
     index : (int, string) Hashtbl.t;
     io : IO.t
@@ -75,7 +76,7 @@ module Make (IO : IO) (C : CODE) = struct
     let rec aux n offset =
       if offset >= len then ()
       else
-        let _, v = C.decode_bin raw offset in
+        let v = C.decode_bin raw offset in
         let len = Int32.to_int v in
         let v = String.sub raw (offset + 4) len in
         Hashtbl.add t.cache v n;
@@ -94,14 +95,17 @@ module Make (IO : IO) (C : CODE) = struct
   let index t v =
     Log.debug (fun l -> l "[dict] index %S" v);
     if IO.readonly t.io then sync_offset t;
-    try Hashtbl.find t.cache v
+    try Some (Hashtbl.find t.cache v)
     with Not_found ->
       if IO.readonly t.io then raise RO_Not_Allowed;
       let id = Hashtbl.length t.cache in
-      append_string t v;
-      Hashtbl.add t.cache v id;
-      Hashtbl.add t.index id v;
-      id
+      if id > t.capacity then None
+      else (
+        if IO.readonly t.io then raise RO_Not_Allowed;
+        append_string t v;
+        Hashtbl.add t.cache v id;
+        Hashtbl.add t.index id v;
+        Some id )
 
   let find t id =
     if IO.readonly t.io then sync_offset t;
@@ -114,11 +118,11 @@ module Make (IO : IO) (C : CODE) = struct
     Hashtbl.clear t.cache;
     Hashtbl.clear t.index
 
-  let v ?(fresh = true) ?(readonly = false) file =
+  let v ?(fresh = true) ?(readonly = false) ?(capacity = 100_000) file =
     let io = IO.v ~fresh ~version:current_version ~readonly file in
     let cache = Hashtbl.create 997 in
     let index = Hashtbl.create 997 in
-    let t = { index; cache; io } in
+    let t = { capacity; index; cache; io } in
     refill ~from:0L t;
     t
 end
